@@ -304,3 +304,81 @@ export async function processShopifyStore(storeId: string): Promise<void> {
         .update({ last_synced_at: new Date().toISOString() })
         .eq('id', storeId);
 }
+
+// Fix Shopify sync 401 Unauthorized error
+// Write a function that:
+// 1. Takes storeDomain and storefrontToken as input
+// 2. Validates the token by calling Shopify Storefront GraphQL API (shop { name })
+// 3. Ensures the URL is Storefront API endpoint (https://storeDomain/api/2024-01/graphql.json)
+// 4. Logs the URL and token for debugging
+// 5. If token is invalid or unauthorized, return detailed error message
+// 6. If valid, proceed to fetch products, collections, pages safely using Storefront API
+// 7. Return structured response { success: boolean, data?: any, error?: string }
+// Include proper try-catch and error handling
+export async function syncShopifyStore(storeDomain: string, storefrontToken: string): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+        // 1. Takes storeDomain and storefrontToken as input
+        // 2. Validates the token by calling Shopify Storefront GraphQL API (shop { name })
+        // 3. Ensures the URL is Storefront API endpoint (https://storeDomain/api/2024-01/graphql.json)
+        const apiUrl = `https://${storeDomain}/api/2024-01/graphql.json`;
+
+        // 4. Logs the URL and token for debugging
+        console.log(`Syncing Shopify store - URL: ${apiUrl}`);
+        console.log(`Token: ${storefrontToken.substring(0, 10)}...`);
+
+        // Create client and validate token
+        const client = new ShopifyAPIClient(storeDomain, storefrontToken);
+
+        // Test token validity with a simple query
+        const storeInfo = await client.getStoreInfo();
+        console.log(`Token validated for store: ${storeInfo.name}`);
+
+        // 5. If token is invalid or unauthorized, return detailed error message
+        // (handled by try-catch)
+
+        // 6. If valid, proceed to fetch products, collections, pages safely using Storefront API
+        // Fetch summary data without processing chunks
+        const products = await client.getProducts(10); // Get first 10 products
+        const collections = await client.getCollections(10); // Get first 10 collections
+        const pages = await client.getPages(10); // Get first 10 pages
+
+        const data = {
+            products: products.products,
+            collections: collections.collections,
+            pages: pages.pages
+        };
+
+        // 7. Return structured response
+        return {
+            success: true,
+            data: {
+                store_name: storeInfo.name,
+                products_count: products.products?.length || 0,
+                collections_count: collections.collections?.length || 0,
+                pages_count: pages.pages?.length || 0,
+                sample_data: data
+            }
+        };
+
+    } catch (error: any) {
+        console.error('Shopify sync error:', error);
+
+        // 5. If token is invalid or unauthorized, return detailed error message
+        let errorMessage = 'Failed to sync Shopify store';
+
+        if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+            errorMessage = 'Invalid or expired Shopify storefront token. Please check your token permissions.';
+        } else if (error.message?.includes('403') || error.message?.includes('Forbidden')) {
+            errorMessage = 'Shopify token lacks required permissions. Ensure storefront access token has read access.';
+        } else if (error.message?.includes('404')) {
+            errorMessage = 'Shopify store not found. Please verify the store domain.';
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+
+        return {
+            success: false,
+            error: errorMessage
+        };
+    }
+}

@@ -31,6 +31,9 @@ export default function ShopifyPage() {
     const [websiteUrl, setWebsiteUrl] = useState("");
     const [authToken, setAuthToken] = useState("");
     const [origin, setOrigin] = useState("");
+    const [validatingToken, setValidatingToken] = useState(false);
+    const [tokenValid, setTokenValid] = useState<boolean | null>(null);
+    const [storeName, setStoreName] = useState<string | null>(null);
 
     const loadStores = useCallback(async () => {
         try {
@@ -88,6 +91,45 @@ export default function ShopifyPage() {
             setMessage({ type: 'error', text: 'Network error occurred' });
         } finally {
             setSettingUp(false);
+        }
+    };
+
+    const handleValidateToken = async () => {
+        if (!storeDomain || !storefrontToken) {
+            setMessage({ type: 'error', text: 'Please enter both store domain and storefront token' });
+            return;
+        }
+
+        setValidatingToken(true);
+        setTokenValid(null);
+        setStoreName(null);
+        setMessage(null);
+
+        try {
+            const res = await fetch("/api/shopify/validate-token", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    store_domain: storeDomain,
+                    storefront_token: storefrontToken,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.valid) {
+                setTokenValid(true);
+                setStoreName(data.store_name);
+                setMessage({ type: 'success', text: `Token validated successfully! Store: ${data.store_name}` });
+            } else {
+                setTokenValid(false);
+                setMessage({ type: 'error', text: data.error || 'Token validation failed' });
+            }
+        } catch (error) {
+            setTokenValid(false);
+            setMessage({ type: 'error', text: 'Network error occurred during validation' });
+        } finally {
+            setValidatingToken(false);
         }
     };
 
@@ -165,7 +207,8 @@ export default function ShopifyPage() {
                                 Connect Shopify Store
                             </CardTitle>
                             <CardDescription>
-                                Enter your Shopify store details and WhatsApp API credentials to connect it with your WhatsApp chatbot
+                                Enter your Shopify store details and WhatsApp API credentials to connect it with your WhatsApp chatbot.
+                                <strong className="text-orange-600"> Test your storefront token before connecting.</strong>
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -207,15 +250,39 @@ export default function ShopifyPage() {
                                         <label className="block text-sm font-medium mb-1">
                                             Storefront Access Token *
                                         </label>
-                                        <Input
-                                            type="password"
-                                            placeholder="Enter your storefront token"
-                                            value={storefrontToken}
-                                            onChange={(e) => setStorefrontToken(e.target.value)}
-                                            required
-                                        />
+                                        <div className="flex gap-2">
+                                            <Input
+                                                type="password"
+                                                placeholder="Enter your storefront token"
+                                                value={storefrontToken}
+                                                onChange={(e) => {
+                                                    setStorefrontToken(e.target.value);
+                                                    setTokenValid(null); // Reset validation when token changes
+                                                    setStoreName(null);
+                                                }}
+                                                required
+                                                className="flex-1"
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={handleValidateToken}
+                                                disabled={validatingToken || !storeDomain || !storefrontToken}
+                                                className="whitespace-nowrap"
+                                            >
+                                                {validatingToken ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                                ) : tokenValid === true ? (
+                                                    <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                                                ) : tokenValid === false ? (
+                                                    <AlertCircle className="h-4 w-4 mr-2 text-red-600" />
+                                                ) : null}
+                                                {validatingToken ? 'Testing...' : tokenValid === true ? 'Valid' : tokenValid === false ? 'Invalid' : 'Test Token'}
+                                            </Button>
+                                        </div>
                                         <p className="text-xs text-gray-500 mt-1">
                                             Create this in Shopify Admin → Settings → Apps → Storefront API
+                                            {storeName && <span className="text-green-600 font-medium"> • Connected to: {storeName}</span>}
                                         </p>
                                     </div>
 
@@ -268,7 +335,7 @@ export default function ShopifyPage() {
                                     </div>
                                 </div>
 
-                                <Button type="submit" disabled={settingUp} className="w-full md:w-auto">
+                                <Button type="submit" disabled={settingUp || tokenValid !== true} className="w-full md:w-auto">
                                     {settingUp ? (
                                         <>
                                             <Loader2 className="h-4 w-4 animate-spin mr-2" />

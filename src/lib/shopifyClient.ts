@@ -75,7 +75,20 @@ export class ShopifyAPIClient {
         });
 
         if (!response.ok) {
-            throw new Error(`Shopify API error: ${response.status} ${response.statusText}`);
+            let errorMessage = `Shopify API error: ${response.status} ${response.statusText}`;
+
+            // Provide specific guidance for common errors
+            if (response.status === 401) {
+                errorMessage = 'Invalid or expired Shopify storefront access token. Please check your token and try again.';
+            } else if (response.status === 403) {
+                errorMessage = 'Access forbidden. Your storefront token may not have the required permissions.';
+            } else if (response.status === 404) {
+                errorMessage = 'Shopify store not found. Please check your store domain.';
+            } else if (response.status === 429) {
+                errorMessage = 'Rate limit exceeded. Please try again later.';
+            }
+
+            throw new Error(errorMessage);
         }
 
         const data = await response.json();

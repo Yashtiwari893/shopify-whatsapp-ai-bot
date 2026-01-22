@@ -86,8 +86,12 @@ ALTER TABLE phone_document_mapping
 DROP CONSTRAINT IF EXISTS unique_phone_file;
 
 -- Add new constraint that ensures one mapping per phone number
-ALTER TABLE phone_document_mapping
-ADD CONSTRAINT unique_phone_number UNIQUE (phone_number);
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'unique_phone_number' AND conrelid = 'phone_document_mapping'::regclass) THEN
+        ALTER TABLE phone_document_mapping ADD CONSTRAINT unique_phone_number UNIQUE (phone_number);
+    END IF;
+END $$;
 
 -- =========================================
 -- 4. Functions and Triggers for Shopify Tables
@@ -107,6 +111,24 @@ CREATE TRIGGER trigger_update_shopify_stores_updated_at
     BEFORE UPDATE ON shopify_stores
     FOR EACH ROW
     EXECUTE FUNCTION update_shopify_stores_updated_at();
+
+-- =========================================
+-- 5. Row Level Security (RLS) Policies
+-- =========================================
+
+-- Enable RLS on new tables
+ALTER TABLE shopify_stores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shopify_chunks ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for shopify_stores
+-- Allow all operations for authenticated users (anon key)
+CREATE POLICY "Enable all operations for authenticated users on shopify_stores" ON shopify_stores
+    FOR ALL USING (true);
+
+-- RLS Policies for shopify_chunks
+-- Allow all operations for authenticated users (anon key)
+CREATE POLICY "Enable all operations for authenticated users on shopify_chunks" ON shopify_chunks
+    FOR ALL USING (true);
 
 -- =========================================
 -- Migration Complete
