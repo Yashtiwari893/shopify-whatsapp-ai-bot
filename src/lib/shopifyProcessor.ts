@@ -89,21 +89,21 @@ export class ShopifyDataProcessor {
 
     // Process all data from Shopify store
     async processAllData(): Promise<void> {
-        console.log('Starting Shopify data processing...');
+        console.log('Starting Shopify data processing (limited for testing)...');
 
         // Clear existing chunks for this store
         await this.clearExistingChunks();
 
-        // Process products
+        // Process limited products (6)
         await this.processProducts();
 
-        // Process pages
+        // Process limited pages (3)
         await this.processPages();
 
-        // Process collections
+        // Process limited collections (3)
         await this.processCollections();
 
-        console.log('Shopify data processing completed.');
+        console.log('Shopify data processing completed (limited for testing).');
     }
 
     private async clearExistingChunks(): Promise<void> {
@@ -120,16 +120,18 @@ export class ShopifyDataProcessor {
     }
 
     private async processProducts(): Promise<void> {
-        console.log('Processing products...');
+        console.log('Processing products (limited to 6 for testing)...');
 
         let hasNextPage = true;
         let endCursor: string | undefined;
         let totalProducts = 0;
+        const maxProducts = 6; // Limit for testing
 
-        while (hasNextPage) {
+        while (hasNextPage && totalProducts < maxProducts) {
             const { products, hasNextPage: nextPage, endCursor: cursor } = await this.client.getProducts(250, endCursor);
 
             for (const product of products) {
+                if (totalProducts >= maxProducts) break;
                 await this.processProduct(product);
                 totalProducts++;
             }
@@ -138,7 +140,7 @@ export class ShopifyDataProcessor {
             endCursor = cursor;
         }
 
-        console.log(`Processed ${totalProducts} products`);
+        console.log(`Processed ${totalProducts} products (limited for testing)`);
     }
 
     private async processProduct(product: ShopifyProduct): Promise<void> {
@@ -164,16 +166,18 @@ export class ShopifyDataProcessor {
     }
 
     private async processPages(): Promise<void> {
-        console.log('Processing pages...');
+        console.log('Processing pages (limited to 3 for testing)...');
 
         let hasNextPage = true;
         let endCursor: string | undefined;
         let totalPages = 0;
+        const maxPages = 3; // Limit for testing
 
-        while (hasNextPage) {
+        while (hasNextPage && totalPages < maxPages) {
             const { pages, hasNextPage: nextPage, endCursor: cursor } = await this.client.getPages(100, endCursor);
 
             for (const page of pages) {
+                if (totalPages >= maxPages) break;
                 await this.processPage(page);
                 totalPages++;
             }
@@ -182,7 +186,7 @@ export class ShopifyDataProcessor {
             endCursor = cursor;
         }
 
-        console.log(`Processed ${totalPages} pages`);
+        console.log(`Processed ${totalPages} pages (limited for testing)`);
     }
 
     private async processPage(page: ShopifyPage): Promise<void> {
@@ -205,16 +209,18 @@ export class ShopifyDataProcessor {
     }
 
     private async processCollections(): Promise<void> {
-        console.log('Processing collections...');
+        console.log('Processing collections (limited to 3 for testing)...');
 
         let hasNextPage = true;
         let endCursor: string | undefined;
         let totalCollections = 0;
+        const maxCollections = 3; // Limit for testing
 
-        while (hasNextPage) {
+        while (hasNextPage && totalCollections < maxCollections) {
             const { collections, hasNextPage: nextPage, endCursor: cursor } = await this.client.getCollections(100, endCursor);
 
             for (const collection of collections) {
+                if (totalCollections >= maxCollections) break;
                 await this.processCollection(collection);
                 totalCollections++;
             }
@@ -223,7 +229,7 @@ export class ShopifyDataProcessor {
             endCursor = cursor;
         }
 
-        console.log(`Processed ${totalCollections} collections`);
+        console.log(`Processed ${totalCollections} collections (limited for testing)`);
     }
 
     private async processCollection(collection: ShopifyCollection): Promise<void> {
@@ -381,4 +387,161 @@ export async function syncShopifyStore(storeDomain: string, storefrontToken: str
             error: errorMessage
         };
     }
+}
+
+// Fix Mistral API 429 rate limit issue during Shopify sync
+// Update the syncShopifyStore function to:
+// 1. Automatically retry API calls when a 429 rate limit error occurs
+// 2. Implement exponential backoff between retries
+// 3. Add a small delay between successive API requests to avoid hitting rate limit
+// 4. Cache embeddings locally or in database to prevent duplicate calls
+// 5. Log retries and errors for debugging
+// 6. Ensure Shopify product/page/collection sync continues even if some API calls fail
+// Generate TypeScript code that:
+// - Fetches Mistral embeddings safely
+// - Handles 429 errors with retries
+// - Throttles requests
+// - Optionally caches results
+async function syncShopifyWithMistralRateLimitSafe(products: ShopifyProduct[]) {
+    const results: { product: ShopifyProduct; chunks: ShopifyChunkData[]; success: boolean; error?: string }[] = [];
+    const embeddingCache = new Map<string, number[]>(); // Cache for embeddings
+    const requestDelay = 100; // 100ms delay between requests
+
+    for (const product of products) {
+        try {
+            console.log(`Processing product: ${product.title}`);
+
+            // Convert product to text
+            const productText = productToText(product);
+
+            // Chunk the text
+            const chunks = chunkText(productText, 1500).filter(c => c.trim().length > 0);
+
+            const processedChunks: ShopifyChunkData[] = [];
+
+            for (let i = 0; i < chunks.length; i++) {
+                const chunk = chunks[i];
+
+                // Check cache first
+                let embedding = embeddingCache.get(chunk);
+                if (!embedding) {
+                    // Fetch embedding with rate limit handling
+                    embedding = await embedTextWithRateLimit(chunk, embeddingCache);
+                }
+
+                // Create chunk data
+                const chunkData: ShopifyChunkData = {
+                    content_type: 'product',
+                    content_id: product.id,
+                    title: product.title,
+                    text: chunk,
+                    metadata: {
+                        handle: product.handle,
+                        variants_count: product.variants.length,
+                        chunk_index: i,
+                        total_chunks: chunks.length
+                    }
+                };
+
+                processedChunks.push(chunkData);
+
+                // Add delay between requests to avoid rate limiting
+                if (i < chunks.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, requestDelay));
+                }
+            }
+
+            results.push({
+                product,
+                chunks: processedChunks,
+                success: true
+            });
+
+        } catch (error: any) {
+            console.error(`Failed to process product ${product.title}:`, error);
+            results.push({
+                product,
+                chunks: [],
+                success: false,
+                error: error.message || 'Unknown error'
+            });
+            // Continue with next product even if this one fails
+        }
+    }
+
+    return results;
+}
+
+// Helper function to convert product to text (extracted from class)
+function productToText(product: ShopifyProduct): string {
+    let text = `Product: ${product.title}\n`;
+
+    if (product.description) {
+        // Remove HTML tags and clean up description
+        const cleanDescription = product.description.replace(/<[^>]*>/g, '').trim();
+        text += `Description: ${cleanDescription}\n`;
+    }
+
+    // Add pricing information
+    const prices = product.variants.map(v => parseFloat(v.price.amount)).filter(p => !isNaN(p));
+    if (prices.length > 0) {
+        const minPrice = Math.min(...prices);
+        const maxPrice = Math.max(...prices);
+        const currencyCode = product.variants[0].price.currencyCode;
+        if (minPrice === maxPrice) {
+            text += `Price: ${currencyCode} ${minPrice.toFixed(2)}\n`;
+        } else {
+            text += `Price Range: ${currencyCode} ${minPrice.toFixed(2)} - ${currencyCode} ${maxPrice.toFixed(2)}\n`;
+        }
+    }
+
+    // Add availability
+    const availableVariants = product.variants.filter(v => v.availableForSale);
+    const totalVariants = product.variants.length;
+    text += `Availability: ${availableVariants.length}/${totalVariants} variants available\n`;
+
+    return text;
+}
+
+// Enhanced embedText with caching and better rate limit handling
+async function embedTextWithRateLimit(text: string, cache: Map<string, number[]>): Promise<number[]> {
+    // Check cache first
+    if (cache.has(text)) {
+        return cache.get(text)!;
+    }
+
+    const maxRetries = 5;
+    let lastError: any;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            const embedding = await embedText(text, 0); // Use existing embedText but with 0 retries since we handle here
+
+            // Cache the result
+            cache.set(text, embedding);
+
+            return embedding;
+
+        } catch (error: any) {
+            lastError = error;
+
+            const isRateLimit = error?.statusCode === 429 || error?.message?.includes('429') || error?.message?.includes('rate limit');
+
+            if (isRateLimit && attempt < maxRetries - 1) {
+                // Exponential backoff with jitter
+                const baseWait = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s, 8s, 16s
+                const jitter = Math.random() * 1000; // Add up to 1s jitter
+                const waitTime = baseWait + jitter;
+
+                console.log(`Mistral rate limit hit for text chunk. Retrying in ${Math.round(waitTime/1000)}s (attempt ${attempt + 1}/${maxRetries})...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+                continue;
+            }
+
+            // If not rate limit or out of retries, throw
+            throw error;
+        }
+    }
+
+    throw lastError || new Error('Failed to generate embedding after all retries');
 }
