@@ -9,6 +9,30 @@ const groq = new Groq({
     apiKey: process.env.GROQ_API_KEY!,
 });
 
+/**
+ * Generic retry function for Supabase queries
+ */
+async function retrySupabaseQuery(
+    queryFn: () => Promise<{ data: any; error: any }>,
+    maxRetries: number = 3
+): Promise<{ data: any; error: any }> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        const result = await queryFn();
+
+        if (!result.error) {
+            return result;
+        }
+
+        if (attempt < maxRetries) {
+            console.log(`Supabase query attempt ${attempt} failed, retrying in ${attempt * 1000}ms...`);
+            await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+        }
+    }
+
+    // Return the last result (which will have the error)
+    return await queryFn();
+}
+
 export type AutoResponseResult = {
     success: boolean;
     response?: string;
@@ -51,10 +75,12 @@ export async function generateAutoResponse(
         let origin: string | undefined;
 
         // 1.5. Fetch phone mapping details including system prompt and credentials
-        const { data: phoneMappings, error: mappingError } = await supabase
-            .from("phone_document_mapping")
-            .select("system_prompt, intent, auth_token, origin")
-            .eq("phone_number", toNumber);
+        const { data: phoneMappings, error: mappingError } = await retrySupabaseQuery(async () =>
+            await supabase
+                .from("phone_document_mapping")
+                .select("system_prompt, intent, auth_token, origin")
+                .eq("phone_number", toNumber)
+        );
 
         if (mappingError || !phoneMappings || phoneMappings.length === 0) {
             console.error("Error fetching phone mappings:", mappingError);

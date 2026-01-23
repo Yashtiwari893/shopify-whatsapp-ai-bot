@@ -1,6 +1,30 @@
 import { supabase } from "./supabaseClient";
 
 /**
+ * Generic retry function for Supabase queries
+ */
+async function retrySupabaseQuery(
+    queryFn: () => Promise<{ data: any; error: any }>,
+    maxRetries: number = 3
+): Promise<{ data: any; error: any }> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        const result = await queryFn();
+
+        if (!result.error) {
+            return result;
+        }
+
+        if (attempt < maxRetries) {
+            console.log(`Supabase query attempt ${attempt} failed, retrying in ${attempt * 1000}ms...`);
+            await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+        }
+    }
+
+    // Return the last result (which will have the error)
+    return await queryFn();
+}
+
+/**
  * Get all file IDs mapped to a phone number
  */
 export async function getFilesForPhoneNumber(phoneNumber: string): Promise<string[]> {
@@ -22,12 +46,14 @@ export async function getFilesForPhoneNumber(phoneNumber: string): Promise<strin
  * Get Shopify store ID mapped to a phone number
  */
 export async function getShopifyStoreForPhoneNumber(phoneNumber: string): Promise<string | null> {
-    const { data, error } = await supabase
-        .from("phone_document_mapping")
-        .select("shopify_store_id")
-        .eq("phone_number", phoneNumber)
-        .not("shopify_store_id", "is", null)
-        .single();
+    const { data, error } = await retrySupabaseQuery(async () =>
+        await supabase
+            .from("phone_document_mapping")
+            .select("shopify_store_id")
+            .eq("phone_number", phoneNumber)
+            .not("shopify_store_id", "is", null)
+            .single()
+    );
 
     if (error) {
         if (error.code === 'PGRST116') { // No rows returned
@@ -99,11 +125,13 @@ export async function createShopifyMapping(
  * Get data source type for a phone number
  */
 export async function getDataSourceForPhone(phoneNumber: string): Promise<'file' | 'shopify' | null> {
-    const { data, error } = await supabase
-        .from("phone_document_mapping")
-        .select("data_source")
-        .eq("phone_number", phoneNumber)
-        .single();
+    const { data, error } = await retrySupabaseQuery(async () =>
+        await supabase
+            .from("phone_document_mapping")
+            .select("data_source")
+            .eq("phone_number", phoneNumber)
+            .single()
+    );
 
     if (error) {
         if (error.code === 'PGRST116') {
