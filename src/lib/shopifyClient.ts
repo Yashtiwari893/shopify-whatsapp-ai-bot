@@ -17,6 +17,7 @@ export interface ShopifyProduct {
     title: string;
     description: string;
     handle: string;
+    onlineStoreUrl?: string;
     variants: Array<{
         id: string;
         price: {
@@ -129,6 +130,7 @@ export class ShopifyAPIClient {
                             title
                             description
                             handle
+                            onlineStoreUrl
                             variants(first: 100) {
                                 edges {
                                     node {
@@ -171,6 +173,7 @@ export class ShopifyAPIClient {
             title: edge.node.title,
             description: edge.node.description,
             handle: edge.node.handle,
+            onlineStoreUrl: edge.node.onlineStoreUrl,
             variants: edge.node.variants.edges.map((vEdge: any) => vEdge.node),
             images: edge.node.images.edges.map((iEdge: any) => iEdge.node)
         }));

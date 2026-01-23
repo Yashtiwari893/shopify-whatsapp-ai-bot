@@ -14,10 +14,12 @@ export interface ShopifyChunkData {
 export class ShopifyDataProcessor {
     private client: ShopifyAPIClient;
     private storeId: string;
+    private storeDomain: string;
 
     constructor(storeDomain: string, storefrontToken: string, storeId: string) {
         this.client = new ShopifyAPIClient(storeDomain, storefrontToken);
         this.storeId = storeId;
+        this.storeDomain = storeDomain;
     }
 
     // Convert product to readable text
@@ -147,8 +149,18 @@ export class ShopifyDataProcessor {
         const text = this.productToText(product);
         const chunks = chunkText(text, 1500).filter(c => c.trim().length > 0);
 
+        // Construct product URL
+        let productUrl: string;
+        if (product.onlineStoreUrl) {
+            productUrl = product.onlineStoreUrl;
+        } else {
+            // Fallback: construct URL using store domain and handle
+            productUrl = `https://${this.storeDomain}/products/${product.handle}`;
+        }
+
         const metadata = {
             handle: product.handle,
+            url: productUrl,
             variants_count: product.variants.length,
             images_count: product.images.length,
             available_variants: product.variants.filter(v => v.availableForSale).length
