@@ -58,22 +58,21 @@ export async function retrieveRelevantShopifyChunks(
     storeId: string,
     limit = 5
 ) {
-    const { data, error } = await supabase
-        .from('shopify_chunks')
-        .select('id, chunk_text, store_id, content_type, title, metadata')
-        .eq('store_id', storeId)
-        .order('embedding <-> vector(\'[' + queryEmbedding.join(',') + ']\')', { ascending: true })
-        .limit(limit);
+    const { data, error } = await supabase.rpc("match_shopify_chunks", {
+        query_embedding: queryEmbedding,
+        store_id_param: storeId,
+        match_count: limit,
+    });
 
     if (error) {
         console.error("SHOPIFY VECTOR SEARCH ERROR:", error);
         throw error;
     }
 
-    return data?.map(row => ({
+    return data?.map((row: any) => ({
         id: row.id,
         chunk: row.chunk_text,
-        similarity: 0, // We could calculate actual similarity if needed
+        similarity: row.similarity,
         store_id: row.store_id,
         content_type: row.content_type,
         title: row.title,
