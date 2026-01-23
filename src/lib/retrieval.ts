@@ -62,7 +62,7 @@ export async function retrieveRelevantShopifyChunks(
         .from('shopify_chunks')
         .select('id, chunk_text, store_id, content_type, title, metadata')
         .eq('store_id', storeId)
-        .order('embedding <-> \'' + queryEmbedding.join(',') + '\'::vector', { ascending: true })
+        .order('embedding <-> \'[' + queryEmbedding.join(',') + ']\'::vector', { ascending: true })
         .limit(limit);
 
     if (error) {
