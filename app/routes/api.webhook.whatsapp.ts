@@ -1,6 +1,6 @@
 import { json, ActionFunctionArgs } from "@remix-run/node";
-import { supabase } from "../../lib/supabaseClient";
-import { generateAutoResponse } from "../../lib/autoResponder";
+import { supabase } from "../lib/supabaseClient";
+import { generateAutoResponse } from "../lib/autoResponder";
 
 export async function action({ request }: ActionFunctionArgs) {
     if (request.method !== "POST") {

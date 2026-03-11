@@ -1,6 +1,6 @@
 import { json, ActionFunctionArgs } from "@remix-run/node";
 import Groq from "groq-sdk";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase } from "../lib/supabaseClient";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 

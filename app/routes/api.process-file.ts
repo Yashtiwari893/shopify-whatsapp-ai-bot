@@ -1,8 +1,8 @@
 import { json, ActionFunctionArgs, unstable_parseMultipartFormData, unstable_createMemoryUploadHandler } from "@remix-run/node";
-import { extractPdfText } from "../../lib/pdf";
-import { chunkText } from "../../lib/chunk";
-import { embedText } from "../../lib/embeddings";
-import { supabase } from "../../lib/supabaseClient";
+import { extractPdfText } from "../lib/pdf";
+import { chunkText } from "../lib/chunk";
+import { embedText } from "../lib/embeddings";
+import { supabase } from "../lib/supabaseClient";
 import { Mistral } from '@mistralai/mistralai';
 
 export async function action({ request }: ActionFunctionArgs) {
