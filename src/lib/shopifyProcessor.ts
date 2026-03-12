@@ -16,8 +16,8 @@ export class ShopifyDataProcessor {
     private storeId: string;
     private storeDomain: string;
 
-    constructor(storeDomain: string, storefrontToken: string, storeId: string) {
-        this.client = new ShopifyAPIClient(storeDomain, storefrontToken);
+    constructor(storeDomain: string, accessToken: string, storeId: string) {
+        this.client = new ShopifyAPIClient(storeDomain, accessToken);
         this.storeId = storeId;
         this.storeDomain = storeDomain;
     }
@@ -310,7 +310,7 @@ export async function processShopifyStore(storeId: string): Promise<void> {
 
     const processor = new ShopifyDataProcessor(
         store.store_domain,
-        store.storefront_token,
+        store.access_token,
         storeId
     );
 

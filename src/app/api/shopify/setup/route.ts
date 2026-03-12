@@ -8,11 +8,11 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { phone_number, shopify_store_domain, shopify_storefront_token, website_url, auth_token, origin } = body;
+        const { phone_number, shopify_store_domain, access_token, website_url, auth_token, origin } = body;
 
-        if (!phone_number || !shopify_store_domain || !shopify_storefront_token || !website_url || !auth_token || !origin) {
+        if (!phone_number || !shopify_store_domain || !access_token || !website_url || !auth_token || !origin) {
             return NextResponse.json({
-                error: "phone_number, shopify_store_domain, shopify_storefront_token, website_url, auth_token, and origin are all required"
+                error: "phone_number, shopify_store_domain, access_token, website_url, auth_token, and origin are all required"
             }, { status: 400 });
         }
 
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
         const store = await createShopifyStore(
             phone_number,
             shopify_store_domain,
-            shopify_storefront_token,
+            access_token,
             website_url
         );
 

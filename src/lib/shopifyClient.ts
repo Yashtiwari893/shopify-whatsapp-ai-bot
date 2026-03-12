@@ -4,10 +4,11 @@ export interface ShopifyStore {
     id: string;
     phone_number: string;
     store_domain: string;
-    storefront_token: string;
+    access_token: string;
     website_url: string;
     store_name?: string;
     last_synced_at?: string;
+    installed_at?: string;
     created_at: string;
     updated_at: string;
 }
@@ -53,21 +54,22 @@ export interface ShopifyCollection {
 
 export class ShopifyAPIClient {
     private storeDomain: string;
-    private storefrontToken: string;
+    private accessToken: string;
 
-    constructor(storeDomain: string, storefrontToken: string) {
+    constructor(storeDomain: string, accessToken: string) {
         this.storeDomain = storeDomain;
-        this.storefrontToken = storefrontToken;
+        this.accessToken = accessToken;
     }
 
     private async makeRequest(query: string, variables?: any): Promise<any> {
-        const url = `https://${this.storeDomain}/api/2024-01/graphql.json`;
+        // Updated to use Admin API GraphQL endpoint
+        const url = `https://${this.storeDomain}/admin/api/2024-01/graphql.json`;
 
         const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Shopify-Storefront-Access-Token': this.storefrontToken,
+                'X-Shopify-Access-Token': this.accessToken, // Updated header for Admin API
             },
             body: JSON.stringify({
                 query,
@@ -76,17 +78,12 @@ export class ShopifyAPIClient {
         });
 
         if (!response.ok) {
-            let errorMessage = `Shopify API error: ${response.status} ${response.statusText}`;
+            let errorMessage = `Shopify Admin API error: ${response.status} ${response.statusText}`;
 
-            // Provide specific guidance for common errors
             if (response.status === 401) {
-                errorMessage = 'Invalid or expired Shopify storefront access token. Please check your token and try again.';
+                errorMessage = 'Invalid or expired Shopify access token. Please re-authenticate the app.';
             } else if (response.status === 403) {
-                errorMessage = 'Access forbidden. Your storefront token may not have the required permissions.';
-            } else if (response.status === 404) {
-                errorMessage = 'Shopify store not found. Please check your store domain.';
-            } else if (response.status === 429) {
-                errorMessage = 'Rate limit exceeded. Please try again later.';
+                errorMessage = 'Access forbidden. The app may not have the required scopes.';
             }
 
             throw new Error(errorMessage);
@@ -270,11 +267,11 @@ export class ShopifyAPIClient {
 export async function createShopifyStore(
     phoneNumber: string,
     storeDomain: string,
-    storefrontToken: string,
+    accessToken: string,
     websiteUrl: string
 ): Promise<ShopifyStore> {
     // First validate the credentials
-    const client = new ShopifyAPIClient(storeDomain, storefrontToken);
+    const client = new ShopifyAPIClient(storeDomain, accessToken);
     const storeInfo = await client.getStoreInfo();
 
     const { data, error } = await supabase
@@ -282,11 +279,12 @@ export async function createShopifyStore(
         .upsert({
             phone_number: phoneNumber,
             store_domain: storeDomain,
-            storefront_token: storefrontToken,
+            access_token: accessToken,
             website_url: websiteUrl,
-            store_name: storeInfo.name
+            store_name: storeInfo.name,
+            installed_at: new Date().toISOString()
         }, {
-            onConflict: 'phone_number'
+            onConflict: 'store_domain'
         })
         .select()
         .single();
