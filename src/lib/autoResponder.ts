@@ -5,8 +5,8 @@ import { getFilesForPhoneNumber, getShopifyStoreForPhoneNumber, getDataSourceFor
 import { sendWhatsAppMessage } from "./whatsappSender";
 import Groq from "groq-sdk";
 
-const groq = new Groq({
-    apiKey: process.env.GROQ_API_KEY!,
+const getGroqClient = () => new Groq({
+    apiKey: process.env.GROQ_API_KEY || "placeholder",
 });
 
 /**
@@ -316,6 +316,7 @@ STRICT RULES:
         console.log(`Context text length: ${contextText?.length || 0} characters`);
         console.log(`Conversation history: ${history.length} messages`);
 
+        const groq = getGroqClient();
         const completion = await groq.chat.completions.create({
             model: "llama-3.3-70b-versatile",
             messages,

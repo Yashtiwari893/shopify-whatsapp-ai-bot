@@ -1,12 +1,13 @@
 import { Mistral } from "@mistralai/mistralai";
 
-const client = new Mistral({
-    apiKey: process.env.MISTRAL_API_KEY!,
+const getMistralClient = () => new Mistral({
+    apiKey: process.env.MISTRAL_API_KEY || "placeholder",
 });
 
 export async function embedText(text: string, retries = 3): Promise<number[]> {
     for (let attempt = 0; attempt <= retries; attempt++) {
         try {
+            const client = getMistralClient();
             const response = await client.embeddings.create({
                 model: "mistral-embed", // consistent with docs
                 inputs: [text],

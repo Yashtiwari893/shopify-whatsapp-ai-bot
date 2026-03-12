@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+export const dynamic = "force-dynamic";
 import { extractPdfText } from "@/lib/pdf";
 import { chunkText } from "@/lib/chunk";
 import { embedText } from "@/lib/embeddings";

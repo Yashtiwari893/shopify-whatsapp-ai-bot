@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import Groq from "groq-sdk";
 import { supabase } from "@/lib/supabaseClient";
 
-const groq = new Groq({
-    apiKey: process.env.GROQ_API_KEY,
+const getGroqClient = () => new Groq({
+    apiKey: process.env.GROQ_API_KEY || "placeholder",
 });
+
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
     try {
@@ -21,6 +23,7 @@ export async function POST(req: NextRequest) {
         console.log("Generating system prompt for intent:", intent);
 
         // Use Groq to generate a system prompt based on the intent
+        const groq = getGroqClient();
         const completion = await groq.chat.completions.create({
             messages: [
                 {

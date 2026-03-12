@@ -4,9 +4,11 @@ import { supabase } from "@/lib/supabaseClient";
 import { embedText } from "@/lib/embeddings";
 import { retrieveRelevantChunks } from "@/lib/retrieval";
 
-const groq = new Groq({
-    apiKey: process.env.GROQ_API_KEY!,
+const getGroqClient = () => new Groq({
+    apiKey: process.env.GROQ_API_KEY || "placeholder",
 });
+
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
     try {
@@ -68,6 +70,7 @@ export async function POST(req: Request) {
         ];
 
         // 5. Call Groq with streaming
+        const groq = getGroqClient();
         const completion = await groq.chat.completions.create({
             model: "llama-3.3-70b-versatile",
             messages,
