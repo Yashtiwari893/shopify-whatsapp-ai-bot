@@ -91,12 +91,12 @@ export class ShopifyDataProcessor {
 
     // Process all data from Shopify store
     async processAllData(): Promise<void> {
-        console.log('Starting Shopify data processing (limited for testing)...');
+        console.log('Starting Shopify data processing (limited to 10 products)...');
 
         // Clear existing chunks for this store
         await this.clearExistingChunks();
 
-        // Process limited products (6)
+        // Process limited products (10)
         await this.processProducts();
 
         // Process limited pages (3)
@@ -105,7 +105,7 @@ export class ShopifyDataProcessor {
         // Process limited collections (3)
         await this.processCollections();
 
-        console.log('Shopify data processing completed (limited for testing).');
+        console.log('Shopify data processing completed.');
     }
 
     private async clearExistingChunks(): Promise<void> {
@@ -122,12 +122,12 @@ export class ShopifyDataProcessor {
     }
 
     private async processProducts(): Promise<void> {
-        console.log('Processing products (limited to 6 for testing)...');
+        console.log('Processing products (limited to 10)...');
 
         let hasNextPage = true;
         let endCursor: string | undefined;
         let totalProducts = 0;
-        const maxProducts = 6; // Limit for testing
+        const maxProducts = 10; // Limit to 10 products
 
         while (hasNextPage && totalProducts < maxProducts) {
             const { products, hasNextPage: nextPage, endCursor: cursor } = await this.client.getProducts(250, endCursor);
@@ -142,7 +142,7 @@ export class ShopifyDataProcessor {
             endCursor = cursor;
         }
 
-        console.log(`Processed ${totalProducts} products (limited for testing)`);
+        console.log(`Processed ${totalProducts} products`);
     }
 
     private async processProduct(product: ShopifyProduct): Promise<void> {
