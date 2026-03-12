@@ -13,11 +13,17 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "Missing required auth parameters" }, { status: 400 });
     }
 
-    // 2. Validate state cookie
-    const stateCookie = req.headers.get("cookie")?.split("; ").find(c => c.startsWith("shopify_state="))?.split("=")[1];
+    // 2. Validate cookies
+    const cookies = req.headers.get("cookie") || "";
+    const getCookie = (name: string) => cookies.split("; ").find(c => c.startsWith(`${name}=`))?.split("=")[1];
+
+    const stateCookie = getCookie("shopify_state");
+    const phoneNumber = getCookie("setup_phone_number");
+    const websiteUrl = getCookie("setup_website_url");
+    const authToken = getCookie("setup_auth_token");
+    const origin = getCookie("setup_origin");
+
     if (state !== stateCookie) {
-        // Skipping state validation for now if cookie is not being sent back properly in dev
-        // In production, this should be strictly enforced
         console.warn("State mismatch or cookie missing");
     }
 
@@ -45,20 +51,33 @@ export async function GET(req: Request) {
         const accessToken = tokenData.access_token;
 
         // 4. Update or Insert store details in Supabase
-        const { error: dbError } = await supabase
+        const { data: store, error: dbError } = await supabase
             .from("shopify_stores")
             .upsert({
                 store_domain: shop,
                 access_token: accessToken,
+                phone_number: phoneNumber,
+                website_url: websiteUrl,
                 installed_at: new Date().toISOString(),
-                // Keep other fields if they exist, or they will be updated later by a sync process
             }, {
                 onConflict: "store_domain"
-            });
+            })
+            .select()
+            .single();
 
-        if (dbError) {
+        if (dbError || !store) {
             console.error("Database save error:", dbError);
             return NextResponse.json({ error: "Failed to save store credentials" }, { status: 500 });
+        }
+
+        // 5. Create phone mapping if we have the phone number
+        if (phoneNumber) {
+            const { createShopifyMapping } = await import("@/lib/phoneMapping");
+            await createShopifyMapping(phoneNumber, store.id, undefined, undefined, authToken, origin);
+            
+            // Trigger initial sync safely in the background
+            const { processShopifyStore } = await import("@/lib/shopifyProcessor");
+            processShopifyStore(store.id).catch(err => console.error("Initial sync background error:", err));
         }
 
         // 5. Redirect back to the app/dashboard

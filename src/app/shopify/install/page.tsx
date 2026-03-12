@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, Button, TextField, Page, Layout, Text, BlockStack, Box, AppProvider } from "@shopify/polaris";
 import enTranslations from "@shopify/polaris/locales/en.json";
-import "@shopify/polaris/build/styles.css";
+import "@shopify/polaris/build/esm/styles.css";
 
 export default function InstallPage() {
     const [shop, setShop] = useState("");

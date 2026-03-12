@@ -4,6 +4,10 @@ import crypto from "crypto";
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const shop = searchParams.get("shop");
+    const phoneNumber = searchParams.get("phone_number");
+    const websiteUrl = searchParams.get("website_url");
+    const authToken = searchParams.get("auth_token");
+    const origin = searchParams.get("origin");
 
     if (!shop) {
         return NextResponse.json({ error: "Missing shop parameter" }, { status: 400 });
@@ -19,12 +23,24 @@ export async function GET(req: Request) {
 
     // Create response and set state cookie for validation in callback
     const response = NextResponse.redirect(installUrl);
-    response.cookies.set("shopify_state", state, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "lax",
-        maxAge: 3600 // 1 hour
-    });
+    
+    // Helper to set cookie
+    const setCookie = (name: string, value: string | null) => {
+        if (value) {
+            response.cookies.set(name, value, {
+                httpOnly: true,
+                secure: true,
+                sameSite: "lax",
+                maxAge: 3600 // 1 hour
+            });
+        }
+    };
+
+    setCookie("shopify_state", state);
+    setCookie("setup_phone_number", phoneNumber);
+    setCookie("setup_website_url", websiteUrl);
+    setCookie("setup_auth_token", authToken);
+    setCookie("setup_origin", origin);
 
     return response;
 }
