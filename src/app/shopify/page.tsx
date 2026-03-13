@@ -240,17 +240,16 @@ export default function ShopifyPage() {
 
                                     <div className="md:col-span-2">
                                         <label className="block text-sm font-medium mb-1">
-                                            Shopify Admin API Access Token *
+                                            Shopify Admin API Access Token (Optional if already installed)
                                         </label>
                                         <Input
                                             type="password"
                                             placeholder="shpat_xxxxxxxxxxxxxxxxxxxxxxxxxx"
                                             value={shopifyAccessToken}
                                             onChange={(e) => setShopifyAccessToken(e.target.value)}
-                                            required
                                         />
                                         <p className="text-xs text-gray-500 mt-1">
-                                            Go to Settings &gt; Apps &gt; Develop apps &gt; Create an app &gt; Configuration &gt; Admin API integration. Enable scopes: read_products, read_content, read_orders.
+                                            If you installed the app via Shopify link, leave this blank. For manual setup, provide the token from Develop apps &gt; Admin API integration.
                                         </p>
                                     </div>
 

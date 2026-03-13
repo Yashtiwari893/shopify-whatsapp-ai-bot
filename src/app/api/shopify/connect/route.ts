@@ -16,9 +16,9 @@ export async function POST(req: Request) {
         } = body;
 
         // 1. Basic Validation
-        if (!phone_number || !store_domain || !access_token || !auth_token || !origin) {
+        if (!phone_number || !store_domain || !auth_token || !origin) {
             return NextResponse.json(
-                { error: "Missing required fields: phone_number, store_domain, access_token, auth_token, or origin" },
+                { error: "Missing required fields: phone_number, store_domain, auth_token, or origin" },
                 { status: 400 }
             );
         }
@@ -29,10 +29,33 @@ export async function POST(req: Request) {
             shop += ".myshopify.com";
         }
 
+        // 3. Get or Verify Access Token
+        let finalAccessToken = access_token;
+
+        // If token not provided, try to find it in the database (for OAuth installs)
+        if (!finalAccessToken) {
+            console.log(`Token not provided, checking database for ${shop}`);
+            const { data: existingStore } = await supabase
+                .from('shopify_stores')
+                .select('access_token')
+                .eq('store_domain', shop)
+                .single();
+            
+            if (existingStore?.access_token) {
+                finalAccessToken = existingStore.access_token;
+                console.log("Found existing token in database");
+            } else {
+                return NextResponse.json(
+                    { error: "No access token provided and no existing installation found for this store. Please provide an Admin API token or install via the Shopify link." },
+                    { status: 400 }
+                );
+            }
+        }
+
         console.log(`Verifying Shopify store: ${shop}`);
 
-        // 3. Verify Shopify Access Token & Domain
-        const shopifyClient = new ShopifyAPIClient(shop, access_token);
+        // Verify the token
+        const shopifyClient = new ShopifyAPIClient(shop, finalAccessToken);
         let storeInfo;
         try {
             storeInfo = await shopifyClient.getStoreInfo();
@@ -40,7 +63,7 @@ export async function POST(req: Request) {
         } catch (shopifyErr: any) {
             console.error("Shopify verification failed:", shopifyErr);
             return NextResponse.json(
-                { error: `Shopify verification failed: ${shopifyErr.message}` },
+                { error: `Shopify verification failed: ${shopifyErr.message}. Make sure the token is an Admin API token (shpat_...)` },
                 { status: 401 }
             );
         }
@@ -50,7 +73,7 @@ export async function POST(req: Request) {
             .from('shopify_stores')
             .upsert({
                 store_domain: shop,
-                access_token: access_token,
+                access_token: finalAccessToken,
                 phone_number: phone_number,
                 website_url: website_url || `https://${shop}`,
                 store_name: storeInfo.name,
