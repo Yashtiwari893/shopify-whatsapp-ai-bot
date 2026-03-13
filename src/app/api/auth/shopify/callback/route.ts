@@ -59,6 +59,7 @@ export async function GET(req: Request) {
         console.log(`[OAUTH DEBUG] Token received successfully for ${formattedShop}`);
 
         // 4. Update or Insert store details in Supabase
+        console.log(`[OAUTH DEBUG] Attempting DB upsert for ${formattedShop}`);
         const { data: store, error: dbError } = await supabase
             .from("shopify_stores")
             .upsert({
@@ -74,23 +75,26 @@ export async function GET(req: Request) {
             .single();
 
         if (dbError || !store) {
-            console.error("Database save error:", dbError);
-            return NextResponse.json({ error: "Failed to save store credentials" }, { status: 500 });
+            console.error("[OAUTH DEBUG] Database save error details:", JSON.stringify(dbError, null, 2));
+            return NextResponse.json({ error: "Failed to save store credentials", details: dbError }, { status: 500 });
         }
 
+        console.log(`[OAUTH DEBUG] DB save successful. Store ID: ${store.id}`);
+
         // 5. Create phone mapping if we have the phone number
+        const dashboardUrl = `${process.env.APP_URL || ''}/shopify`;
+        
         if (phoneNumber) {
             const { createShopifyMapping } = await import("@/lib/phoneMapping");
             await createShopifyMapping(phoneNumber, store.id, "Sales and Support Assistant", "", authToken, origin);
             
-            // Trigger initial sync safely in the background
             const { processShopifyStore } = await import("@/lib/shopifyProcessor");
             processShopifyStore(store.id).catch(err => console.error("Initial sync background error:", err));
             
-            return NextResponse.redirect(`${process.env.APP_URL}/shopify?shop=${shop}&success=true`);
+            return NextResponse.redirect(`${dashboardUrl}?shop=${formattedShop}&success=true`);
         } else {
-            // Metadata missing - redirect to setup page to collect WhatsApp details
-            return NextResponse.redirect(`${process.env.APP_URL}/shopify?shop=${shop}&setup_needed=true`);
+            console.log(`[OAUTH DEBUG] No phoneNumber found in cookies, redirecting to setup`);
+            return NextResponse.redirect(`${dashboardUrl}?shop=${formattedShop}&setup_needed=true`);
         }
 
     } catch (err: any) {
