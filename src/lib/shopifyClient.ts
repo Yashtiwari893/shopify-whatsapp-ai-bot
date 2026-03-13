@@ -79,6 +79,15 @@ export class ShopifyAPIClient {
 
         if (!response.ok) {
             let errorMessage = `Shopify Admin API error: ${response.status} ${response.statusText}`;
+            
+            // Try to get response body for more detail
+            try {
+                const body = await response.text();
+                console.error(`Shopify Error Body (Status ${response.status}):`, body);
+                errorMessage += ` - Details: ${body}`;
+            } catch (e) {
+                console.error("Could not read Shopify error body");
+            }
 
             if (response.status === 401) {
                 errorMessage = 'Invalid or expired Shopify access token. Please re-authenticate the app.';

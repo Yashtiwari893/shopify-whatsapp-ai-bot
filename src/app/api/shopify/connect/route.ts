@@ -23,8 +23,11 @@ export async function POST(req: Request) {
             );
         }
 
-        // 2. Format Domain
-        let shop = store_domain.trim().toLowerCase();
+        // 2. Format Domain - Strip protocols and trailing slashes
+        let shop = store_domain.trim().toLowerCase()
+            .replace(/^https?:\/\//, '') // Remove http:// or https://
+            .replace(/\/$/, '');         // Remove trailing slash
+
         if (!shop.includes(".")) {
             shop += ".myshopify.com";
         }
@@ -34,19 +37,23 @@ export async function POST(req: Request) {
 
         // If token not provided, try to find it in the database (for OAuth installs)
         if (!finalAccessToken) {
-            console.log(`Token not provided, checking database for ${shop}`);
-            const { data: existingStore } = await supabase
+            console.log(`[DEBUG] No token in body, searching DB for domain: "${shop}"`);
+            const { data: existingStore, error: findError } = await supabase
                 .from('shopify_stores')
-                .select('access_token')
+                .select('access_token, id')
                 .eq('store_domain', shop)
                 .single();
             
+            if (findError) {
+                console.error("[DEBUG] DB Search Error:", findError);
+            }
+
             if (existingStore?.access_token) {
                 finalAccessToken = existingStore.access_token;
-                console.log("Found existing token in database");
+                console.log(`[DEBUG] Found existing token. Length: ${finalAccessToken.length}`);
             } else {
                 return NextResponse.json(
-                    { error: "No access token provided and no existing installation found for this store. Please provide an Admin API token or install via the Shopify link." },
+                    { error: "No access token provided and no existing installation found for this store domain. Please provide an Admin API token or install the app first." },
                     { status: 400 }
                 );
             }
