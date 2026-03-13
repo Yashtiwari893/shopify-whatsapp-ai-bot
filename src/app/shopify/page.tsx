@@ -23,6 +23,7 @@ export default function ShopifyPage() {
     const [settingUp, setSettingUp] = useState(false);
     const [syncing, setSyncing] = useState<string | null>(null);
     const [message, setMessage] = useState<{ type: 'success' | 'alert' | 'error'; text: string } | null>(null);
+    const [storeDomainFromUrl, setStoreDomainFromUrl] = useState(false);
 
     // Setup form state
     const [phoneNumber, setPhoneNumber] = useState("");
@@ -54,7 +55,10 @@ export default function ShopifyPage() {
         const setupNeeded = params.get('setup_needed');
         const success = params.get('success');
 
-        if (shop) setStoreDomain(shop);
+        if (shop) {
+            setStoreDomain(shop);
+            setStoreDomainFromUrl(true);
+        }
         
         if (setupNeeded === 'true') {
             setMessage({ 
@@ -186,42 +190,37 @@ export default function ShopifyPage() {
                 </div>
             )}
 
-            <Tabs defaultValue="setup" className="space-y-6">
-                <TabsList>
-                    <TabsTrigger value="setup">Setup Store</TabsTrigger>
-                    <TabsTrigger value="manage">Manage Stores</TabsTrigger>
-                </TabsList>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Store className="h-5 w-5" />
+                        Connect Shopify Store (Admin API)
+                    </CardTitle>
+                    <CardDescription>
+                        Enter your Shopify Admin API Access Token and WhatsApp credentials to connect your store directly.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <form onSubmit={handleSetup} className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">
+                                    WhatsApp Business Number *
+                                </label>
+                                <Input
+                                    type="tel"
+                                    placeholder="+1234567890"
+                                    value={phoneNumber}
+                                    onChange={(e) => setPhoneNumber(e.target.value)}
+                                    required
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    The phone number connected to your WhatsApp Business API
+                                </p>
+                            </div>
 
-                <TabsContent value="setup">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Store className="h-5 w-5" />
-                                Connect Shopify Store (Admin API)
-                            </CardTitle>
-                            <CardDescription>
-                                Enter your Shopify Admin API Access Token and WhatsApp credentials to connect your store directly.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <form onSubmit={handleSetup} className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">
-                                            WhatsApp Business Number *
-                                        </label>
-                                        <Input
-                                            type="tel"
-                                            placeholder="+1234567890"
-                                            value={phoneNumber}
-                                            onChange={(e) => setPhoneNumber(e.target.value)}
-                                            required
-                                        />
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            The phone number connected to your WhatsApp Business API
-                                        </p>
-                                    </div>
-
+                            {!storeDomainFromUrl && (
+                                <>
                                     <div>
                                         <label className="block text-sm font-medium mb-1">
                                             Shopify Store Domain *
@@ -240,7 +239,7 @@ export default function ShopifyPage() {
 
                                     <div className="md:col-span-2">
                                         <label className="block text-sm font-medium mb-1">
-                                            Shopify Admin API Access Token (Optional if already installed)
+                                            Shopify Admin API Access Token (Required for manual setup)
                                         </label>
                                         <Input
                                             type="password"
@@ -250,10 +249,14 @@ export default function ShopifyPage() {
                                             autoComplete="off"
                                         />
                                         <p className="text-xs text-gray-500 mt-1">
-                                            If you installed the app via Shopify link, leave this blank. For manual setup, provide the token from Develop apps &gt; Admin API integration.
+                                            Provide the token from Develop apps &gt; Admin API integration in your Shopify admin.
                                         </p>
                                     </div>
+                                </>
+                            )}
 
+                            {!storeDomainFromUrl && (
+                                <>
                                     <div>
                                         <label className="block text-sm font-medium mb-1">
                                             Website URL (Optional)
@@ -268,135 +271,58 @@ export default function ShopifyPage() {
                                             Your store's main website URL
                                         </p>
                                     </div>
+                                </>
+                            )}
 
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">
-                                            11za Auth Token *
-                                        </label>
-                                        <Input
-                                            type="password"
-                                            placeholder="Enter your 11za auth token"
-                                            value={authToken}
-                                            onChange={(e) => setAuthToken(e.target.value)}
-                                            required
-                                        />
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            WhatsApp API authentication token from 11za
-                                        </p>
-                                    </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">
+                                    11za Auth Token *
+                                </label>
+                                <Input
+                                    type="password"
+                                    placeholder="Enter your 11za auth token"
+                                    value={authToken}
+                                    onChange={(e) => setAuthToken(e.target.value)}
+                                    required
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    WhatsApp API authentication token from 11za
+                                </p>
+                            </div>
 
-                                    <div className="md:col-span-2">
-                                        <label className="block text-sm font-medium mb-1">
-                                            11za Origin Website *
-                                        </label>
-                                        <Input
-                                            type="url"
-                                            placeholder="https://yourwebsite.com"
-                                            value={origin}
-                                            onChange={(e) => setOrigin(e.target.value)}
-                                            required
-                                        />
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            The origin website URL registered with 11za
-                                        </p>
-                                    </div>
-                                </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium mb-1">
+                                    11za Origin Website *
+                                </label>
+                                <Input
+                                    type="url"
+                                    placeholder="https://yourwebsite.com"
+                                    value={origin}
+                                    onChange={(e) => setOrigin(e.target.value)}
+                                    required
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    The origin website URL registered with 11za
+                                </p>
+                            </div>
+                        </div>
 
-                                <Button type="submit" disabled={settingUp} className="w-full md:w-auto">
-                                    {settingUp ? (
-                                        <>
-                                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                            Verifying & Connecting...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <CheckCircle className="h-4 w-4 mr-2" />
-                                            Connect Store
-                                        </>
-                                    )}
-                                </Button>
-                            </form>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                <TabsContent value="manage">
-                    <div className="space-y-4">
-                        {stores.length === 0 ? (
-                            <Card>
-                                <CardContent className="py-8 text-center">
-                                    <Store className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                                    <p className="text-gray-500">No Shopify stores connected yet</p>
-                                    <p className="text-sm text-gray-400 mt-1">
-                                        Setup your first store in the Setup tab
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            stores.map((store) => (
-                                <Card key={store.id}>
-                                    <CardHeader>
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <CardTitle className="flex items-center gap-2">
-                                                    <Store className="h-5 w-5" />
-                                                    {store.store_name || 'Unnamed Store'}
-                                                </CardTitle>
-                                                <CardDescription>
-                                                    {store.store_domain} • {store.phone_number}
-                                                </CardDescription>
-                                            </div>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handleSync(store.phone_number)}
-                                                disabled={syncing === store.phone_number}
-                                            >
-                                                {syncing === store.phone_number ? (
-                                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                                ) : (
-                                                    <RefreshCw className="h-4 w-4 mr-2" />
-                                                )}
-                                                Sync
-                                            </Button>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                            <div>
-                                                <span className="font-medium">Domain:</span>
-                                                <p className="text-gray-600">{store.store_domain}</p>
-                                            </div>
-                                            <div>
-                                                <span className="font-medium">Website:</span>
-                                                <p className="text-gray-600">
-                                                    <a
-                                                        href={store.website_url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-blue-600 hover:underline"
-                                                    >
-                                                        {store.website_url}
-                                                    </a>
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <span className="font-medium">Last Synced:</span>
-                                                <p className="text-gray-600">
-                                                    {store.last_synced_at
-                                                        ? new Date(store.last_synced_at).toLocaleString()
-                                                        : 'Never'
-                                                    }
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))
-                        )}
-                    </div>
-                </TabsContent>
-            </Tabs>
+                        <Button type="submit" disabled={settingUp} className="w-full md:w-auto">
+                            {settingUp ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                    Verifying & Connecting...
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Connect Store
+                                </>
+                            )}
+                        </Button>
+                    </form>
+                </CardContent>
+            </Card>
         </div>
     );
 }
