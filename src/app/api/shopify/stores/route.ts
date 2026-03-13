@@ -23,8 +23,19 @@ export async function GET() {
 
     } catch (error: any) {
         console.error("Shopify stores list error:", error);
+        // Debugging: detail log
+        const errorDetail = {
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint,
+            stack: error.stack
+        };
+        console.error("Detailed Error:", JSON.stringify(errorDetail, null, 2));
+        
         return NextResponse.json({
-            error: error.message || "Failed to fetch Shopify stores"
+            error: error.message || "Failed to fetch Shopify stores",
+            debug: errorDetail
         }, { status: 500 });
     }
 }

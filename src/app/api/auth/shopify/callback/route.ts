@@ -56,8 +56,8 @@ export async function GET(req: Request) {
             .upsert({
                 store_domain: shop,
                 access_token: accessToken,
-                phone_number: phoneNumber,
-                website_url: websiteUrl,
+                phone_number: phoneNumber || null,
+                website_url: websiteUrl || `https://${shop}`,
                 installed_at: new Date().toISOString(),
             }, {
                 onConflict: "store_domain"
@@ -73,15 +73,17 @@ export async function GET(req: Request) {
         // 5. Create phone mapping if we have the phone number
         if (phoneNumber) {
             const { createShopifyMapping } = await import("@/lib/phoneMapping");
-            await createShopifyMapping(phoneNumber, store.id, undefined, undefined, authToken, origin);
+            await createShopifyMapping(phoneNumber, store.id, "Sales and Support Assistant", "", authToken, origin);
             
             // Trigger initial sync safely in the background
             const { processShopifyStore } = await import("@/lib/shopifyProcessor");
             processShopifyStore(store.id).catch(err => console.error("Initial sync background error:", err));
+            
+            return NextResponse.redirect(`${process.env.APP_URL}/shopify?shop=${shop}&success=true`);
+        } else {
+            // Metadata missing - redirect to setup page to collect WhatsApp details
+            return NextResponse.redirect(`${process.env.APP_URL}/shopify?shop=${shop}&setup_needed=true`);
         }
-
-        // 5. Redirect back to the app/dashboard
-        return NextResponse.redirect(`${process.env.APP_URL}/shopify?shop=${shop}&success=true`);
 
     } catch (err: any) {
         console.error("OAuth callback error:", err);

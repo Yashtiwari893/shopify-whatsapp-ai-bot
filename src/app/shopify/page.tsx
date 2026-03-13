@@ -22,12 +22,13 @@ export default function ShopifyPage() {
     const [loading, setLoading] = useState(true);
     const [settingUp, setSettingUp] = useState(false);
     const [syncing, setSyncing] = useState<string | null>(null);
-    const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [message, setMessage] = useState<{ type: 'success' | 'alert' | 'error'; text: string } | null>(null);
 
     // Setup form state
     const [phoneNumber, setPhoneNumber] = useState("");
     const [storeDomain, setStoreDomain] = useState("");
     const [websiteUrl, setWebsiteUrl] = useState("");
+    const [shopifyAccessToken, setShopifyAccessToken] = useState(""); 
     const [authToken, setAuthToken] = useState("");
     const [origin, setOrigin] = useState("");
 
@@ -46,41 +47,78 @@ export default function ShopifyPage() {
 
     useEffect(() => {
         loadStores();
+        
+        // Handle URL parameters for success/setup
+        const params = new URLSearchParams(window.location.search);
+        const shop = params.get('shop');
+        const setupNeeded = params.get('setup_needed');
+        const success = params.get('success');
+
+        if (shop) setStoreDomain(shop);
+        
+        if (setupNeeded === 'true') {
+            setMessage({ 
+                type: 'alert', 
+                text: `App installed for ${shop}! Now please provide the WhatsApp credentials below to complete the setup.` 
+            });
+        } else if (success === 'true') {
+            setMessage({ 
+                type: 'success', 
+                text: `Successfully connected ${shop}!` 
+            });
+        }
     }, [loadStores]);
 
     const handleSetup = async (e: React.FormEvent) => {
+        // ... (rest of the logic stays similar, I'll provide the full component structure)
         e.preventDefault();
         setSettingUp(true);
         setMessage(null);
 
         try {
-            // Validate inputs
-            if (!phoneNumber || !storeDomain || !websiteUrl || !authToken || !origin) {
-                setMessage({ type: 'error', text: 'All fields are required' });
+            if (!phoneNumber || !storeDomain || !shopifyAccessToken || !authToken || !origin) {
+                setMessage({ type: 'error', text: 'All required fields must be filled' });
                 setSettingUp(false);
                 return;
             }
 
-            // Ensure domain ends with .myshopify.com
             let shop = storeDomain.trim().toLowerCase();
             if (!shop.includes(".")) {
                 shop += ".myshopify.com";
             }
 
-            // Construct redirect URL to our OAuth install endpoint with metadata
-            const params = new URLSearchParams({
-                shop: shop,
-                phone_number: phoneNumber,
-                website_url: websiteUrl,
-                auth_token: authToken,
-                origin: origin
+            const res = await fetch("/api/shopify/connect", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    phone_number: phoneNumber,
+                    store_domain: shop,
+                    access_token: shopifyAccessToken,
+                    website_url: websiteUrl,
+                    auth_token: authToken,
+                    origin: origin
+                })
             });
 
-            // Redirect to start the OAuth process
-            window.location.href = `/api/auth/shopify/install?${params.toString()}`;
+            const data = await res.json();
+
+            if (res.ok) {
+                setMessage({ type: 'success', text: 'Meta-data updated and store connected successfully!' });
+                setPhoneNumber("");
+                setStoreDomain("");
+                setWebsiteUrl("");
+                setShopifyAccessToken("");
+                setAuthToken("");
+                setOrigin("");
+                loadStores();
+            } else {
+                setMessage({ type: 'error', text: data.error || 'Failed to connect store' });
+            }
 
         } catch (error) {
+            console.error("Setup error:", error);
             setMessage({ type: 'error', text: 'An unexpected error occurred' });
+        } finally {
             setSettingUp(false);
         }
     };
@@ -96,12 +134,11 @@ export default function ShopifyPage() {
                 body: JSON.stringify({ phone_number: phoneNumber }),
             });
 
-            const data = await res.json();
-
             if (res.ok) {
-                setMessage({ type: 'success', text: 'Store synced successfully!' });
+                setMessage({ type: 'success', text: 'Store data synced with AI successfully!' });
                 loadStores();
             } else {
+                const data = await res.json();
                 setMessage({ type: 'error', text: data.error || 'Failed to sync store' });
             }
         } catch (error) {
@@ -122,9 +159,9 @@ export default function ShopifyPage() {
     return (
         <div className="container mx-auto p-6 max-w-6xl">
             <div className="mb-8">
-                <h1 className="text-3xl font-bold mb-2">Shopify Store Integration</h1>
+                <h1 className="text-3xl font-bold mb-2">Shopify Store Management</h1>
                 <p className="text-gray-600">
-                    Connect your Shopify stores to enable AI-powered customer support via WhatsApp
+                    Finish your installation or connect new stores via Admin API
                 </p>
             </div>
 
@@ -132,11 +169,15 @@ export default function ShopifyPage() {
                 <div className={`mb-6 p-4 rounded-lg border ${
                     message.type === 'error'
                         ? 'border-red-200 bg-red-50 text-red-800'
+                        : message.type === 'alert'
+                        ? 'border-blue-200 bg-blue-50 text-blue-800'
                         : 'border-green-200 bg-green-50 text-green-800'
                 }`}>
                     <div className="flex items-center gap-2">
                         {message.type === 'error' ? (
                             <AlertCircle className="h-4 w-4" />
+                        ) : message.type === 'alert' ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                             <CheckCircle className="h-4 w-4" />
                         )}
@@ -156,10 +197,10 @@ export default function ShopifyPage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Store className="h-5 w-5" />
-                                Connect Shopify Store
+                                Connect Shopify Store (Admin API)
                             </CardTitle>
                             <CardDescription>
-                                Enter your Shopify store details and WhatsApp API credentials. After clicking connect, you will be redirected to Shopify to authorize the app.
+                                Enter your Shopify Admin API Access Token and WhatsApp credentials to connect your store directly.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -193,20 +234,35 @@ export default function ShopifyPage() {
                                             required
                                         />
                                         <p className="text-xs text-gray-500 mt-1">
-                                            Your Shopify store domain (must end with .myshopify.com)
+                                            Your Shopify store domain (e.g. your-store.myshopify.com)
+                                        </p>
+                                    </div>
+
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium mb-1">
+                                            Shopify Admin API Access Token *
+                                        </label>
+                                        <Input
+                                            type="password"
+                                            placeholder="shpat_xxxxxxxxxxxxxxxxxxxxxxxxxx"
+                                            value={shopifyAccessToken}
+                                            onChange={(e) => setShopifyAccessToken(e.target.value)}
+                                            required
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Go to Settings &gt; Apps &gt; Develop apps &gt; Create an app &gt; Configuration &gt; Admin API integration. Enable scopes: read_products, read_content, read_orders.
                                         </p>
                                     </div>
 
                                     <div>
                                         <label className="block text-sm font-medium mb-1">
-                                            Website URL *
+                                            Website URL (Optional)
                                         </label>
                                         <Input
                                             type="url"
                                             placeholder="https://yourstore.com"
                                             value={websiteUrl}
                                             onChange={(e) => setWebsiteUrl(e.target.value)}
-                                            required
                                         />
                                         <p className="text-xs text-gray-500 mt-1">
                                             Your store's main website URL
@@ -229,7 +285,7 @@ export default function ShopifyPage() {
                                         </p>
                                     </div>
 
-                                    <div>
+                                    <div className="md:col-span-2">
                                         <label className="block text-sm font-medium mb-1">
                                             11za Origin Website *
                                         </label>
@@ -250,12 +306,12 @@ export default function ShopifyPage() {
                                     {settingUp ? (
                                         <>
                                             <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                            Redirecting to Shopify...
+                                            Verifying & Connecting...
                                         </>
                                     ) : (
                                         <>
-                                            <Store className="h-4 w-4 mr-2" />
-                                            Connect with Shopify
+                                            <CheckCircle className="h-4 w-4 mr-2" />
+                                            Connect Store
                                         </>
                                     )}
                                 </Button>
