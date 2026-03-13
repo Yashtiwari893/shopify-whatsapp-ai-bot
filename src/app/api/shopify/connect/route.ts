@@ -35,9 +35,10 @@ export async function POST(req: Request) {
         // 3. Get or Verify Access Token
         let finalAccessToken = access_token;
 
-        // If token not provided, try to find it in the database (for OAuth installs)
-        if (!finalAccessToken) {
-            console.log(`[DEBUG] No token in body, searching DB for domain: "${shop}"`);
+        if (finalAccessToken) {
+            console.log(`[CONNECT DEBUG] Using token provided in request body (Length: ${finalAccessToken.length})`);
+        } else {
+            console.log(`[CONNECT DEBUG] No token in body, searching DB for domain: "${shop}"`);
             const { data: existingStore, error: findError } = await supabase
                 .from('shopify_stores')
                 .select('access_token, id')
@@ -45,12 +46,12 @@ export async function POST(req: Request) {
                 .single();
             
             if (findError) {
-                console.error("[DEBUG] DB Search Error:", findError);
+                console.error("[CONNECT DEBUG] DB Search Error:", findError);
             }
 
             if (existingStore?.access_token) {
                 finalAccessToken = existingStore.access_token;
-                console.log(`[DEBUG] Found existing token. Length: ${finalAccessToken.length}`);
+                console.log(`[CONNECT DEBUG] Found existing token in DB. Length: ${finalAccessToken.length}`);
             } else {
                 return NextResponse.json(
                     { error: "No access token provided and no existing installation found for this store domain. Please provide an Admin API token or install the app first." },

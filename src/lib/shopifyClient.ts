@@ -78,21 +78,20 @@ export class ShopifyAPIClient {
         });
 
         if (!response.ok) {
-            let errorMessage = `Shopify Admin API error: ${response.status} ${response.statusText}`;
-            
-            // Try to get response body for more detail
+            let details = "";
             try {
-                const body = await response.text();
-                console.error(`Shopify Error Body (Status ${response.status}):`, body);
-                errorMessage += ` - Details: ${body}`;
+                details = await response.text();
+                console.error(`[SHOPIFY DEBUG] Status ${response.status} Body:`, details);
             } catch (e) {
-                console.error("Could not read Shopify error body");
+                details = "Could not read body";
             }
 
+            let errorMessage = `Shopify API Error (${response.status}): ${details}`;
+
             if (response.status === 401) {
-                errorMessage = 'Invalid or expired Shopify access token. Please re-authenticate the app.';
+                errorMessage += " | Hint: Token might be invalid or expired. Check if Client ID matches.";
             } else if (response.status === 403) {
-                errorMessage = 'Access forbidden. The app may not have the required scopes.';
+                errorMessage += " | Hint: Missing API Scopes. App needs read_products, read_content, etc.";
             }
 
             throw new Error(errorMessage);
