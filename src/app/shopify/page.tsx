@@ -76,7 +76,7 @@ export default function ShopifyPage() {
         setMessage(null);
 
         try {
-            if (!phoneNumber || !storeDomain || !shopifyAccessToken || !authToken || !origin) {
+            if (!phoneNumber || !storeDomain || !authToken || !origin) {
                 setMessage({ type: 'error', text: 'All required fields must be filled' });
                 setSettingUp(false);
                 return;
