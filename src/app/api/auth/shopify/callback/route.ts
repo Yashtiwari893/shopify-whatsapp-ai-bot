@@ -24,12 +24,19 @@ export async function GET(req: Request) {
     const origin = getCookie("setup_origin");
 
     if (state !== stateCookie) {
-        console.warn("State mismatch or cookie missing");
+        console.warn("[OAUTH DEBUG] State mismatch or cookie missing");
     }
+
+    // Normalize shop domain - Strip protocols if any (Shopify usually sends just hostname but let's be safe)
+    const formattedShop = (shop || "").trim().toLowerCase()
+        .replace(/^https?:\/\//, '')
+        .replace(/\/$/, '');
+
+    console.log(`[OAUTH DEBUG] Exchanging code for token for shop: ${formattedShop}`);
 
     try {
         // 3. Exchange code for access token
-        const accessTokenResponse = await fetch(`https://${shop}/admin/oauth/access_token`, {
+        const accessTokenResponse = await fetch(`https://${formattedShop}/admin/oauth/access_token`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -44,20 +51,21 @@ export async function GET(req: Request) {
         const tokenData = await accessTokenResponse.json();
 
         if (!accessTokenResponse.ok || !tokenData.access_token) {
-            console.error("Shopify token exchange failed:", tokenData);
+            console.error("[OAUTH DEBUG] Shopify token exchange failed:", tokenData);
             return NextResponse.json({ error: "Failed to exchange token", details: tokenData }, { status: 500 });
         }
 
         const accessToken = tokenData.access_token;
+        console.log(`[OAUTH DEBUG] Token received successfully for ${formattedShop}`);
 
         // 4. Update or Insert store details in Supabase
         const { data: store, error: dbError } = await supabase
             .from("shopify_stores")
             .upsert({
-                store_domain: shop,
+                store_domain: formattedShop,
                 access_token: accessToken,
                 phone_number: phoneNumber || null,
-                website_url: websiteUrl || `https://${shop}`,
+                website_url: websiteUrl || `https://${formattedShop}`,
                 installed_at: new Date().toISOString(),
             }, {
                 onConflict: "store_domain"
