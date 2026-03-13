@@ -33,9 +33,9 @@ export async function POST(req: Request) {
         }
 
         // 3. Get or Verify Access Token
-        let finalAccessToken = access_token;
+        let finalAccessToken = access_token?.trim();
 
-        if (finalAccessToken) {
+        if (finalAccessToken && finalAccessToken !== "") {
             console.log(`[CONNECT DEBUG] Using token provided in request body (Length: ${finalAccessToken.length})`);
         } else {
             console.log(`[CONNECT DEBUG] No token in body, searching DB for domain: "${shop}"`);
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
                 .from('shopify_stores')
                 .select('access_token, id')
                 .eq('store_domain', shop)
-                .single();
+                .maybeSingle(); // Use maybeSingle to avoid 406 errors
             
             if (findError) {
                 console.error("[CONNECT DEBUG] DB Search Error:", findError);
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
                 console.log(`[CONNECT DEBUG] Found existing token in DB. Length: ${finalAccessToken.length}`);
             } else {
                 return NextResponse.json(
-                    { error: "No access token provided and no existing installation found for this store domain. Please provide an Admin API token or install the app first." },
+                    { error: `App not installed for ${shop}. Please install the app first using your Shopify install link before connecting WhatsApp.` },
                     { status: 400 }
                 );
             }

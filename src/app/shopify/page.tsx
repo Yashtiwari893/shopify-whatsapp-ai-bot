@@ -247,6 +247,7 @@ export default function ShopifyPage() {
                                             placeholder="shpat_xxxxxxxxxxxxxxxxxxxxxxxxxx"
                                             value={shopifyAccessToken}
                                             onChange={(e) => setShopifyAccessToken(e.target.value)}
+                                            autoComplete="off"
                                         />
                                         <p className="text-xs text-gray-500 mt-1">
                                             If you installed the app via Shopify link, leave this blank. For manual setup, provide the token from Develop apps &gt; Admin API integration.
